@@ -32,7 +32,7 @@ def fabCommand(f):
 @click.option("--correctionpatterns", type=click.Path(dir_okay=False))
 @click.option("--missingError/--missingWarn", help="If a non-ignored component misses LCSC field, fail")
 @click.option("--autoname/--no-autoname", is_flag=True, help="Automatically name the output files based on the board name")
-@click.option("--skip-missing", is_flag=True, help="Skip components with missing or empty LCSC field")
+@click.option("--skip-missing/--no-skip-missing", is_flag=True, help="Skip components with missing or empty LCSC field", default=True)
 def jlcpcb(**kwargs):
     """
     Prepare fabrication files for JLCPCB including their assembly service
