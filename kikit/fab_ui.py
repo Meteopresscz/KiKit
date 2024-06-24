@@ -87,6 +87,17 @@ def oshpark(**kwargs):
 
 @click.command()
 @fabCommand
+def gatema(**kwargs):
+    """
+    Prepare fabrication files for Gatema
+    """
+    from kikit.fab import gatema
+    from kikit.common import fakeKiCADGui
+    app = fakeKiCADGui()
+    return execute_with_debug(gatema.exportGatema, kwargs)
+
+@click.command()
+@fabCommand
 @click.option("--schematic", type=click.Path(dir_okay=False), help="Board schematics (required for assembly files)")
 @click.option("--ignore", type=str, default="", help="Comma separated list of designators to exclude from SMT assembly")
 @click.option("--corrections", type=str, default="YY1_CORRECTION",
@@ -122,5 +133,6 @@ def fab():
 fab.add_command(jlcpcb)
 fab.add_command(pcbway)
 fab.add_command(oshpark)
+fab.add_command(gatema)
 fab.add_command(neodenyy1)
 fab.add_command(openpnp)
