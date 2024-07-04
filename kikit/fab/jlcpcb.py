@@ -9,7 +9,7 @@ from kikit.fab.common import *
 from kikit.common import *
 from kikit.export import gerberImpl
 
-def collectBom(components, lscsFields, ignore, skip_missing):
+def collectBom(components, lscsFields, ignore, skip_missing, variant):
     bom = {}
     for c in components:
         if getUnit(c) != 1:
@@ -29,6 +29,10 @@ def collectBom(components, lscsFields, ignore, skip_missing):
             continue
         if hasattr(c, "dnp") and c.dnp:
             continue
+        if getField(c, "KIKIT_VARIANT_DNP") is not None:
+            dnp_variants = getField(c, "KIKIT_VARIANT_DNP").split(",")
+            if variant in dnp_variants:
+                continue
         orderCode = None
         for fieldName in lscsFields:
             orderCode = getField(c, fieldName)
@@ -59,7 +63,7 @@ def bomToCsv(bomData, filename):
 
 def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
            corrections, correctionpatterns, missingerror, nametemplate, drc,
-           autoname, skip_missing):
+           autoname, skip_missing, variant):
     """
     Prepare fabrication files for JLCPCB including their assembly service
     """
@@ -94,7 +98,10 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     correctionFields = [x.strip() for x in corrections.split(",")]
     components = extractComponents(schematic)
     ordercodeFields = [x.strip() for x in field.split(",")]
-    bom = collectBom(components, ordercodeFields, refsToIgnore, skip_missing)
+    bom = collectBom(
+        components, ordercodeFields,
+        refsToIgnore, skip_missing, variant
+    )
 
     bom_refs = set(x for xs in bom.values() for x in xs)
     bom_components = [c for c in components if getReference(c) in bom_refs]
