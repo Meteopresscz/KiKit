@@ -36,6 +36,13 @@ def getProperty(sexpr, field):
             return x[2].value
     return None
 
+def collectProperties(sexpr):
+    properties = {}
+    for x in islice(sexpr, 1, None):
+        if len(x) > 0  and isinstance(x[0], Atom) and x[0].value == "property":
+            properties[x[1].value] = x[2].value
+    return properties
+
 def isSymbol(sexpr):
     if isinstance(sexpr, Atom) or len(sexpr) == 0:
         return False
@@ -89,7 +96,17 @@ def getAttributeKey(sexpr):
         return None
     return key.value
 
-def extractSymbol(sexpr, path):
+def expandPropertyVariables(propValue, parentProperties):
+    # TODO: This is not a complete implementation of the KiCad variable
+    # expansion, but it should be enough for our purposes
+    # In particular this probably fucks up escaping and could cause weird
+    # recursive replacement
+    result = propValue
+    for k, v in parentProperties.items():
+        result = result.replace("${" + k + "}", v)
+    return result
+
+def extractSymbol(sexpr, path, parentProperties = {}):
     s = Symbol()
     for x in islice(sexpr, 1, None):
         key = getAttributeKey(x)
@@ -109,7 +126,8 @@ def extractSymbol(sexpr, path):
         elif key == "dnp":
             s.dnp = x[1].value == "yes"
         elif key == "property":
-            s.properties[x[1].value] = x[2].value
+            s.properties[x[1].value] = \
+                expandPropertyVariables(x[2].value, parentProperties)
     return s
 
 def extractSymbolInstance(sexpr, sheetPath):
@@ -165,7 +183,7 @@ def extractSymbolInstanceV6(sexpr, path):
             s.footprint = x[1].value
     return s
 
-def collectSymbols(filename, path = None):
+def collectSymbols(filename, path = None, parentProperties = {}):
     """
     Crawl given sheet and return two lists - one with symbols, one with
     symbol instances
@@ -178,7 +196,7 @@ def collectSymbols(filename, path = None):
         if isUuid(item) and path is None:
             path = "/" + item.items[1].value
         if isSymbol(item):
-            symbols.append(extractSymbol(item, path))
+            symbols.append(extractSymbol(item, path, parentProperties = parentProperties))
             instance = extractSymbolInstance(item, path)
             if instance is not None:
                 instances.append(instance)
@@ -194,7 +212,8 @@ def collectSymbols(filename, path = None):
             dirname = os.path.dirname(filename)
             if len(dirname) > 0:
                 f = dirname + "/" + f
-            s, i = collectSymbols(f, path + "/" + uuid)
+            sheetProperties = collectProperties(item)
+            s, i = collectSymbols(f, path + "/" + uuid, sheetProperties)
             symbols += s
             instances += i
             continue
