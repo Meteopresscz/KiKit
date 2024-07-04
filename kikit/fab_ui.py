@@ -29,6 +29,8 @@ def fabCommand(f):
     help="Comma separated list of component fields field with LCSC order code. First existing field is used")
 @click.option("--corrections", type=str, default="JLCPCB_CORRECTION",
     help="Comma separated list of component fields with the correction value. First existing field is used")
+@click.option("--variant", type=str, default=None,
+    help="Which variant to use for the assembly files")
 @click.option("--correctionpatterns", type=click.Path(dir_okay=False))
 @click.option("--missingError/--missingWarn", help="If a non-ignored component misses LCSC field, fail")
 @click.option("--skip-missing/--no-skip-missing", is_flag=True, help="Skip components with missing or empty LCSC field", default=True)
