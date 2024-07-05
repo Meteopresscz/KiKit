@@ -1,6 +1,8 @@
 # Based on https://github.com/KiCad/kicad-source-mirror/blob/master/demos/python_scripts_examples/gen_gerber_and_drill_files_board.py
 import sys
 import os
+import subprocess
+from kikit.text import kikitTextVars
 from pcbnewTransition import pcbnew
 from pcbnewTransition.pcbnew import *
 
@@ -70,6 +72,18 @@ def setExcludeEdgeLayer(plotOptions, excludeEdge):
         else:
             plotOptions.SetLayerSelection(LSET(Layer.Edge_Cuts))
 
+def expandVarsInBoard(board, vars):
+    # Iterate over all the drawings which are of Text
+    for item in board.GetDrawings():
+        if item.GetTypeDesc() != "Text":
+            continue
+        # Safeguard against fucking up copper layers
+        if not item.GetLayerName().endswith("Silkscreen"):
+            continue
+        template = item.GetText()
+        actual = template.format(**vars)
+        item.SetText(actual)
+
 def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True, settings=exportSettingsJlcpcb):
     """
     Export board to gerbers.
@@ -84,6 +98,9 @@ def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True
     plotDir = os.path.abspath(plotDir)
 
     board = LoadBoard(boardfile)
+
+    vars = kikitTextVars(board)
+    expandVarsInBoard(board, vars)
 
     pctl = PLOT_CONTROLLER(board)
     popt = pctl.GetPlotOptions()

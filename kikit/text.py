@@ -1,4 +1,5 @@
 import datetime as dt
+import subprocess
 from string import Template
 from typing import Callable, Optional, Dict, Any
 from pcbnewTransition import pcbnew
@@ -25,6 +26,16 @@ class Formatter:
             raise RuntimeError(f"Requested text '{string}' expects project variable '{e}' which is missing") from None
 
 def kikitTextVars(board: pcbnew.BOARD, vars: Dict[str, str]={}) -> Dict[str, Any]:
+
+    def gitCommand(cmd) -> Callable[[], str]:
+        def fn() -> str:
+            try:
+                res = subprocess.check_output(cmd)
+                return res.decode("utf-8").strip()
+            except subprocess.CalledProcessError:
+                return "unknown"
+        return fn
+
     availableVars: Dict[str, Formatter] = {
         "date": Formatter(lambda: dt.datetime.today().strftime("%Y-%m-%d"), vars),
         "time24": Formatter(lambda: dt.datetime.today().strftime("%H:%M"), vars),
@@ -37,7 +48,9 @@ def kikitTextVars(board: pcbnew.BOARD, vars: Dict[str, str]={}) -> Dict[str, Any
         "boardTitle": Formatter(lambda: board.GetTitleBlock().GetTitle(), vars),
         "boardDate": Formatter(lambda: board.GetTitleBlock().GetDate(), vars),
         "boardRevision": Formatter(lambda: board.GetTitleBlock().GetRevision(), vars),
-        "boardCompany": Formatter(lambda: board.GetTitleBlock().GetCompany(), vars)
+        "boardCompany": Formatter(lambda: board.GetTitleBlock().GetCompany(), vars),
+        "gitCommit": Formatter(gitCommand(["git", "describe", "--long", "--always", "--dirty=-d"]), vars),
+        "gitDate": Formatter(gitCommand(["git", "show", "-s", "--format=%cs"]), vars),
     }
 
     for i in range(10):
