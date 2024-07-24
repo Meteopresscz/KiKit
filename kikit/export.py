@@ -78,7 +78,12 @@ def expandVarsInBoard(board, vars):
         if not item.GetLayerName().endswith("Silkscreen"):
             continue
         template = item.GetText()
-        actual = template.format(**vars)
+        try:
+            actual = template.format(**vars)
+        except KeyError:
+            # This usually happens if a variable is not expanded.
+            # If that is the case, we do not replace anything in the string.
+            continue
         item.SetText(actual)
 
 def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True, settings=exportSettingsJlcpcb):
