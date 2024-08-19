@@ -48,9 +48,7 @@ def ensurePassingDrc(board):
         strict=False,
         level=ReportLevel.error,
         yieldViolation=lambda x: print(x))
-    if failed:
-        print("DRC failed. See report above. No files produced")
-        sys.exit(1)
+    return not failed
 
 def hasNonSMDPins(footprint):
     for pad in footprint.Pads():
