@@ -4,7 +4,7 @@ import shutil
 from pcbnewTransition.pcbnew import GENDRILL_WRITER_BASE
 from pathlib import Path
 from kikit.export import gerberImpl, exportSettingsOSHPark, fullGerberPlotPlan
-from kikit.fab.common import ensurePassingDrc, expandNameTemplate
+from kikit.fab.common import ensurePassingDrc, expandNameTemplate, refillAllZones
 
 
 exportSettingsGatema = {
@@ -41,12 +41,12 @@ def exportGatema(board, outputdir, nametemplate, drc):
     loadedBoard = pcbnew.LoadBoard(board)
     Path(outputdir).mkdir(parents=True, exist_ok=True)
 
-    if drc:
-        ensurePassingDrc(loadedBoard)
+    refillAllZones(loadedBoard)
+    ensurePassingDrc(loadedBoard)
 
     gerberdir = os.path.join(outputdir, "gerber")
     shutil.rmtree(gerberdir, ignore_errors=True)
-    gerberImpl(board, gerberdir, plot_plan=fullGerberPlotPlan, settings=exportSettingsGatema)
+    gerberImpl(board, gerberdir, board=loadedBoard, plot_plan=fullGerberPlotPlan, settings=exportSettingsGatema)
 
     # Rename files according to Gatema requirements
     # https://www.gatemapcb.cz/wp-content/uploads/2023/08/oznaceni-vrstev.pdf
