@@ -70,8 +70,8 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     ensureValidBoard(board)
     loadedBoard = pcbnew.LoadBoard(board)
 
-    if drc:
-        ensurePassingDrc(loadedBoard)
+    refillAllZones(loadedBoard)
+    ensurePassingDrc(loadedBoard)
 
     refsToIgnore = parseReferences(ignore)
     removeComponents(loadedBoard, refsToIgnore)
@@ -79,7 +79,7 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
 
     gerberdir = os.path.join(outputdir, "gerber")
     shutil.rmtree(gerberdir, ignore_errors=True)
-    gerberImpl(board, gerberdir)
+    gerberImpl(board, gerberdir, board=loadedBoard)
 
     if autoname:
         boardName = os.path.basename(board.replace(".kicad_pcb", ""))

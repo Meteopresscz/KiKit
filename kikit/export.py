@@ -89,7 +89,7 @@ def expandVarsInBoard(board, vars):
             continue
         item.SetText(actual)
 
-def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True, settings=exportSettingsJlcpcb):
+def gerberImpl(boardfile, outputdir, board=None, plot_plan=fullGerberPlotPlan, drilling=True, settings=exportSettingsJlcpcb):
     """
     Export board to gerbers.
 
@@ -102,7 +102,10 @@ def gerberImpl(boardfile, outputdir, plot_plan=fullGerberPlotPlan, drilling=True
         plotDir = basename + "-gerber"
     plotDir = os.path.abspath(plotDir)
 
-    board = LoadBoard(boardfile)
+    # TODO: It would be best if we removed all other places where this is called
+    # using a path
+    if board is None:
+        board = LoadBoard(boardfile)
 
     vars = kikitTextVars(board)
     expandVarsInBoard(board, vars)

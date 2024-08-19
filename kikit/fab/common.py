@@ -42,6 +42,14 @@ def getReference(component):
         return eeschema_v6.getReference(component)
     return eeschema.getReference(component)
 
+def refillAllZones(board):
+    zones = board.Zones()
+    for zone in zones:
+        zone.SetNeedRefill(True)
+        zone.UnFill()
+    filler = pcbnew.ZONE_FILLER(board)
+    filler.Fill(zones)
+
 def ensurePassingDrc(board):
     failed = drc.runImpl(board,
         useMm=True,
