@@ -88,7 +88,7 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     if not assembly:
         return
     if schematic is None:
-        raise RuntimeError("When outputing assembly data, schematic is required")
+        schematic = str(Path(board).with_suffix(".kicad_sch"))
 
     ensureValidSch(schematic)
 
