@@ -1,6 +1,7 @@
 from pcbnewTransition import pcbnew
 import os
 import shutil
+import time
 from pcbnewTransition.pcbnew import GENDRILL_WRITER_BASE
 from pathlib import Path
 from kikit.export import gerberImpl, exportSettingsOSHPark, fullGerberPlotPlan
@@ -44,6 +45,12 @@ def exportGatema(board, outputdir, nametemplate, drc):
     refillAllZones(loadedBoard)
     ensurePassingDrc(loadedBoard)
 
+    boardName = os.path.basename(board.replace(".kicad_pcb", ""))
+    archiveName = expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)
+    archivePathFull = os.path.join(outputdir, archiveName) + ".zip"
+
+    Path(archivePathFull).unlink(missing_ok=True)
+
     gerberdir = os.path.join(outputdir, "gerber")
     shutil.rmtree(gerberdir, ignore_errors=True)
     gerberImpl(board, gerberdir, board=loadedBoard, plot_plan=fullGerberPlotPlan, settings=exportSettingsGatema)
@@ -57,6 +64,7 @@ def exportGatema(board, outputdir, nametemplate, drc):
         for file in oldFile:
             file.rename(file.with_suffix(new))
 
-    boardName = os.path.basename(board.replace(".kicad_pcb", ""))
-    archiveName = expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)
     shutil.make_archive(os.path.join(outputdir, archiveName), "zip", outputdir, "gerber")
+
+    ctimeStr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(archivePathFull)))
+    print(f"Gerber files archived in {archivePathFull} (creation time {ctimeStr})")

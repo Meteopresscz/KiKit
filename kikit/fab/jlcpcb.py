@@ -1,4 +1,5 @@
 import click
+import time
 from pcbnewTransition import pcbnew
 import csv
 import os
@@ -79,7 +80,6 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
 
     gerberdir = os.path.join(outputdir, "gerber")
     shutil.rmtree(gerberdir, ignore_errors=True)
-    gerberImpl(board, gerberdir, board=loadedBoard)
 
     if autoname:
         boardName = os.path.basename(board.replace(".kicad_pcb", ""))
@@ -87,6 +87,16 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     else:
         archiveName = expandNameTemplate(nametemplate, "gerbers", loadedBoard)
     shutil.make_archive(os.path.join(outputdir, archiveName), "zip", outputdir, "gerber")
+    archivePath = os.path.join(outputdir, archiveName)
+    archivePathFull = archivePath + ".zip"
+
+    # Delete the archive if it already exists
+    Path(archivePathFull).unlink(missing_ok=True)
+    gerberImpl(board, gerberdir, board=loadedBoard)
+    shutil.make_archive(archivePath, "zip", outputdir, "gerber")
+
+    ctimeStr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(archivePathFull)))
+    print(f"Gerber files archived in {archivePathFull} (creation time {ctimeStr})")
 
     if not assembly:
         return
