@@ -47,6 +47,11 @@ def collectBom(components, lscsFields, ignore, skip_missing, variant):
         bom[cType] = bom.get(cType, []) + [reference]
     return bom
 
+def sanitizeFootprintName(footprint: str) -> str:
+    # For reasons unknown, JLC seems to not properly assign a component
+    # if the footprint contains certain keywords...
+    return footprint.replace("foot", "hand")  # foot fetish removal
+
 def bomToCsv(bomData, filename):
     with open(filename, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
@@ -60,6 +65,7 @@ def bomToCsv(bomData, filename):
             for i in range(0, len(references), CHUNK_SIZE):
                 refChunk = sortedReferences[i:i+CHUNK_SIZE]
                 value, footprint, lcsc = cType
+                footprint = sanitizeFootprintName(footprint)
                 writer.writerow([value, ",".join(refChunk), footprint, lcsc])
 
 def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
