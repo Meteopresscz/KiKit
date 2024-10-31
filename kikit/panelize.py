@@ -348,7 +348,7 @@ def isBoardEdge(edge):
 
     The rule is: all drawings on Edge.Cuts layer are edges.
     """
-    return isinstance(edge, pcbnew.PCB_SHAPE) and edge.GetLayerName() == "Edge.Cuts"
+    return isinstance(edge, pcbnew.PCB_SHAPE) and edge.GetLayer() == pcbnew.Edge_Cuts
 
 def tabSpacing(width, count):
     """
@@ -615,7 +615,10 @@ class Panel:
             if zName.startswith("KIKIT_zone_"):
                 zonesToRefill.append(zone)
                 zone.SetZoneName(originalZoneNames[zName])
-        fillerTool.Fill(zonesToRefill)
+        if len(zonesToRefill) > 0:
+            # Even if there are no zones to refill, the refill algorithm takes
+            # non-trivial time to compute, hence, skip it.
+            fillerTool.Fill(zonesToRefill)
 
         fillBoard.Save(self.filename)
         self._adjustPageSize()

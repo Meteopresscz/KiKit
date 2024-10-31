@@ -51,6 +51,10 @@ def getStartPoint(geom):
         point = geom.GetStart() + pcbnew.VECTOR2I(geom.GetRadius(), 0)
     elif geom.GetShape() == STROKE_T.S_RECT:
         point = geom.GetStart()
+    elif geom.GetShape() == STROKE_T.S_POLYGON:
+        # Polygons don't use the properties for start point, look into the
+        # geometry
+        point = geom.GetPolyShape().Outline(0).CPoints()[0]
     else:
         point = geom.GetStart()
     return point
@@ -62,6 +66,14 @@ def getEndPoint(geom):
     elif geom.GetShape() == STROKE_T.S_RECT:
         # Rectangle is closed, so it starts at the same point as it ends
         point = geom.GetStart()
+    elif geom.GetShape() == STROKE_T.S_POLYGON:
+        # Polygons don't use the properties for start point, look into the
+        # geometry
+        outline = geom.GetPolyShape().Outline(0)
+        if outline.IsClosed():
+            point = outline.CPoints()[0]
+        else:
+            point = outline.CPoints()[-1]
     else:
         point = geom.GetStart() if geom.IsClosed() else geom.GetEnd()
     return point
@@ -349,8 +361,9 @@ def substratesFrom(polygons):
     return substrates
 
 class CircleFitCandidates:
-    def __init__(self, tolerance: int = fromMm(0.01)):
+    def __init__(self, tolerance: int = fromMm(0.005), radius_limit: int = fromMm(1000)):
         self.tolerance = tolerance
+        self.radius_limit = radius_limit
 
         self._xs = []
         self._xSum: float = 0
@@ -392,7 +405,7 @@ class CircleFitCandidates:
         else:
             toRevalidate = [(np.array([self._xs[-2], self._ys[-2]]), np.array([self._xs[-1], self._ys[-1]]))]
 
-        if self._doLinesFitCircle(toRevalidate, newCenter, newRadius):
+        if self._doLinesFitCircle(toRevalidate, newCenter, newRadius) and newRadius < self.radius_limit:
             self.foundCircle = newCenter, newRadius
             return True
 
