@@ -68,6 +68,14 @@ def bomToCsv(bomData, filename):
                 footprint = sanitizeFootprintName(footprint)
                 writer.writerow([value, ",".join(refChunk), footprint, lcsc])
 
+def dumpUnassignedTable(bomData, filename):
+    with open(filename, "w") as fout:
+        for cType, references in bomData.items():
+            value, footprint, _ = cType
+            ref_string = ",".join(references)
+            # Print into a left-aligned table
+            fout.write(f"{value:<40} {footprint:<60} {ref_string}\n")
+
 def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
            corrections, correctionpatterns, missingerror, nametemplate, drc,
            autoname, skip_missing, variant):
@@ -140,5 +148,12 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     if missingFields and missingerror:
         sys.exit("There are components with missing ordercode, aborting")
 
+    bom_with_missing = collectBom(
+        components, ordercodeFields,
+        refsToIgnore, False, variant
+    )
+    bom_missing = {key: val for key, val in bom_with_missing.items() if not key[-1]}
+
+    dumpUnassignedTable(bom_missing, os.path.join(outputdir, expandNameTemplate(nametemplate, "unassigned", loadedBoard)) + ".txt")
     posDataToFile(posData, os.path.join(outputdir, expandNameTemplate(nametemplate, "pos", loadedBoard) + ".csv"))
     bomToCsv(bom, os.path.join(outputdir, expandNameTemplate(nametemplate, "bom", loadedBoard) + ".csv"))
