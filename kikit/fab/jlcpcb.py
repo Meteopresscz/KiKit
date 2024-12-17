@@ -52,6 +52,22 @@ def sanitizeFootprintName(footprint: str) -> str:
     # if the footprint contains certain keywords...
     return footprint.replace("foot", "hand")  # foot fetish removal
 
+def sanitizeArchiveName(name: str) -> str:
+    replacement_table = {
+        "eval": "evl",
+        "copy": "cp",
+        "convert": "cvt",
+        "confirm": "cfm",
+        "Copy": "cp",
+    }
+    while True:
+        for old, new in replacement_table.items():
+            if old in name:
+                name = name.replace(old, new)
+        else:
+            break
+    return name
+
 def bomToCsv(bomData, filename):
     with open(filename, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
@@ -96,7 +112,9 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     shutil.rmtree(gerberdir, ignore_errors=True)
     boardName = os.path.basename(board.replace(".kicad_pcb", ""))
 
-    archiveName = expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)
+    archiveName = sanitizeArchiveName(
+        expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)
+    )
     archivePath = os.path.join(outputdir, archiveName)
     archivePathFull = archivePath + ".zip"
 
