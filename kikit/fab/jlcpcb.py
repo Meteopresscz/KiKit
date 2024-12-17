@@ -107,6 +107,13 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
     # Delete the archive if it already exists
     Path(archivePathFull).unlink(missing_ok=True)
     gerberImpl(board, gerberdir, board=loadedBoard)
+
+    # Check if there is a file called jlcpcb.json
+    jlcpcbConfig = os.path.join(os.path.dirname(board), "jlcpcb.json")
+    if os.path.exists(jlcpcbConfig):
+        # Copy the file to the output directory
+        shutil.copy(jlcpcbConfig, gerberdir)
+
     shutil.make_archive(archivePath, "zip", outputdir, "gerber")
 
     ctimeStr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(archivePathFull)))
