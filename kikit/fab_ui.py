@@ -34,6 +34,8 @@ def fabCommand(f):
 @click.option("--correctionpatterns", type=click.Path(dir_okay=False))
 @click.option("--missingError/--missingWarn", help="If a non-ignored component misses LCSC field, fail")
 @click.option("--autoname/--no-autoname", is_flag=True, help="Automatically name the output files based on the board name")
+@click.option("--remove-footprint", multiple=True, type=str, default=[],
+    help="Footprint ID (Lib:Footprint) to remove before generating Gerbers. Can be specified multiple times.")
 @click.option("--skip-missing/--no-skip-missing", is_flag=True, help="Skip components with missing or empty LCSC field", default=True)
 def jlcpcb(**kwargs):
     """

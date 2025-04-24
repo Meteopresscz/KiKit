@@ -94,7 +94,7 @@ def dumpUnassignedTable(bomData, filename):
 
 def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
            corrections, correctionpatterns, missingerror, nametemplate, drc,
-           autoname, skip_missing, variant):
+           remove_footprint, autoname, skip_missing, variant):
     """
     Prepare fabrication files for JLCPCB including their assembly service
     """
@@ -106,6 +106,18 @@ def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
 
     refsToIgnore = parseReferences(ignore)
     removeComponents(loadedBoard, refsToIgnore)
+
+    # Remove specified footprints before generating outputs
+    if remove_footprint:
+        footprints_to_remove = []
+        for fp in loadedBoard.GetFootprints():
+            # Use GetLibItemName() for the footprint name within the library
+            fp_id_str = f"{fp.GetFPID().GetLibNickname().wx_str()}:{fp.GetFPID().GetLibItemName().wx_str()}"
+            if fp_id_str in remove_footprint:
+                footprints_to_remove.append(fp)
+        for fp in footprints_to_remove:
+            loadedBoard.Delete(fp)
+
     Path(outputdir).mkdir(parents=True, exist_ok=True)
 
     gerberdir = os.path.join(outputdir, "gerber")
