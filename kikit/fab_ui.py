@@ -23,6 +23,7 @@ def fabCommand(f):
 @click.command()
 @fabCommand
 @click.option("--assembly/--no-assembly", help="Generate files for SMT assembly (schematics is required)")
+@click.option("--gerbers/--no-gerbers", help="Generate Gerber files", default=True)
 @click.option("--schematic", type=click.Path(dir_okay=False), help="Board schematics (required for assembly files)")
 @click.option("--ignore", type=str, default="", help="Comma separated list of designators to exclude from SMT assembly")
 @click.option("--field", type=str, default="LCSC",
