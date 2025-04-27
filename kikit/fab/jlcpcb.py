@@ -92,63 +92,65 @@ def dumpUnassignedTable(bomData, filename):
             # Print into a left-aligned table
             fout.write(f"{value:<40} {footprint:<60} {ref_string}\n")
 
-def exportJlcpcb(board, outputdir, assembly, schematic, ignore, field,
+def exportJlcpcb(board, outputdir, assembly, gerbers, schematic, ignore, field,
            corrections, correctionpatterns, missingerror, nametemplate, drc,
            remove_footprint, autoname, skip_missing, variant):
     """
     Prepare fabrication files for JLCPCB including their assembly service
     """
+
+    refsToIgnore = parseReferences(ignore)
+    Path(outputdir).mkdir(parents=True, exist_ok=True)
+
     ensureValidBoard(board)
     loadedBoard = pcbnew.LoadBoard(board)
 
-    refillAllZones(loadedBoard)
-    ensurePassingDrc(loadedBoard)
+    if gerbers:
+        refillAllZones(loadedBoard)
+        ensurePassingDrc(loadedBoard)
 
-    refsToIgnore = parseReferences(ignore)
-    removeComponents(loadedBoard, refsToIgnore)
+        removeComponents(loadedBoard, refsToIgnore)
 
-    # Remove specified footprints before generating outputs
-    if remove_footprint:
-        footprints_to_remove = []
-        for fp in loadedBoard.GetFootprints():
-            # Use GetLibItemName() for the footprint name within the library
-            fp_id_str = f"{fp.GetFPID().GetLibNickname().wx_str()}:{fp.GetFPID().GetLibItemName().wx_str()}"
-            if fp_id_str in remove_footprint:
-                footprints_to_remove.append(fp)
-        for fp in footprints_to_remove:
-            loadedBoard.Delete(fp)
+        # Remove specified footprints before generating outputs
+        if remove_footprint:
+            footprints_to_remove = []
+            for fp in loadedBoard.GetFootprints():
+                # Use GetLibItemName() for the footprint name within the library
+                fp_id_str = f"{fp.GetFPID().GetLibNickname().wx_str()}:{fp.GetFPID().GetLibItemName().wx_str()}"
+                if fp_id_str in remove_footprint:
+                    footprints_to_remove.append(fp)
+            for fp in footprints_to_remove:
+                loadedBoard.Delete(fp)
 
-    Path(outputdir).mkdir(parents=True, exist_ok=True)
+        gerberdir = os.path.join(outputdir, "gerber")
+        shutil.rmtree(gerberdir, ignore_errors=True)
 
-    gerberdir = os.path.join(outputdir, "gerber")
-    shutil.rmtree(gerberdir, ignore_errors=True)
+        if autoname:
+            boardName = os.path.basename(board.replace(".kicad_pcb", ""))
+            archiveName = expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)
+        else:
+            archiveName = expandNameTemplate(nametemplate, "gerbers", loadedBoard)
+        archiveName = sanitizeArchiveName(archiveName)
 
-    if autoname:
-        boardName = os.path.basename(board.replace(".kicad_pcb", ""))
-        archiveName = expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)
-    else:
-        archiveName = expandNameTemplate(nametemplate, "gerbers", loadedBoard)
-    archiveName = sanitizeArchiveName(archiveName)
+        shutil.make_archive(os.path.join(outputdir, archiveName), "zip", outputdir, "gerber")
 
-    shutil.make_archive(os.path.join(outputdir, archiveName), "zip", outputdir, "gerber")
+        archivePath = os.path.join(outputdir, archiveName)
+        archivePathFull = archivePath + ".zip"
 
-    archivePath = os.path.join(outputdir, archiveName)
-    archivePathFull = archivePath + ".zip"
+        # Delete the archive if it already exists
+        Path(archivePathFull).unlink(missing_ok=True)
+        gerberImpl(board, gerberdir, board=loadedBoard)
 
-    # Delete the archive if it already exists
-    Path(archivePathFull).unlink(missing_ok=True)
-    gerberImpl(board, gerberdir, board=loadedBoard)
+        # Check if there is a file called jlcpcb.json
+        jlcpcbConfig = os.path.join(os.path.dirname(board), "jlcpcb.json")
+        if os.path.exists(jlcpcbConfig):
+            # Copy the file to the output directory
+            shutil.copy(jlcpcbConfig, gerberdir)
 
-    # Check if there is a file called jlcpcb.json
-    jlcpcbConfig = os.path.join(os.path.dirname(board), "jlcpcb.json")
-    if os.path.exists(jlcpcbConfig):
-        # Copy the file to the output directory
-        shutil.copy(jlcpcbConfig, gerberdir)
+        shutil.make_archive(archivePath, "zip", outputdir, "gerber")
 
-    shutil.make_archive(archivePath, "zip", outputdir, "gerber")
-
-    ctimeStr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(archivePathFull)))
-    print(f"Gerber files archived in {archivePathFull} (creation time {ctimeStr})")
+        ctimeStr = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(archivePathFull)))
+        print(f"Gerber files archived in {archivePathFull} (creation time {ctimeStr})")
 
     if not assembly:
         return
