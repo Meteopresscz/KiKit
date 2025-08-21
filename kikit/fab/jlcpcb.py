@@ -6,6 +6,7 @@ import os
 import sys
 import shutil
 from pathlib import Path
+import kikit.defs
 from kikit.fab.common import *
 from kikit.common import *
 from kikit.export import gerberImpl
@@ -197,3 +198,79 @@ def exportJlcpcb(board, outputdir, assembly, gerbers, schematic, ignore, field,
     dumpUnassignedTable(bom_missing, os.path.join(outputdir, expandNameTemplate(nametemplate, "unassigned", loadedBoard)) + ".txt")
     posDataToFile(posData, os.path.join(outputdir, expandNameTemplate(nametemplate, "pos", loadedBoard) + ".csv"))
     bomToCsv(bom, os.path.join(outputdir, expandNameTemplate(nametemplate, "bom", loadedBoard) + ".csv"))
+
+    # Look for QR code squares on silkscreen layers
+    dumpQRSquares(loadedBoard)
+
+def dumpQRSquares(loadedBoard):
+    """
+    Find filled rectangles on silkscreen layers that are 5x5, 8x8, or 10x10 mm
+    and print their location and size information for QR code placement.
+    """
+    target_sizes = [5.0, 8.0, 10.0]  # mm
+    tolerance = 0.1  # mm tolerance for size matching
+
+    # Find silkscreen layers by name (more robust than hardcoded layer IDs)
+    silkscreen_layers = []
+    all_drawings = list(loadedBoard.GetDrawings())
+
+    # Get all unique layers
+    all_layers = set(drawing.GetLayer() for drawing in all_drawings)
+
+    # Find layers with "Silk" in their name
+    for layer_id in all_layers:
+        try:
+            layer_name = loadedBoard.GetLayerName(layer_id)
+            if "silk" in layer_name.lower() or "silkscreen" in layer_name.lower():
+                silkscreen_layers.append((layer_id, layer_name))
+        except:
+            continue
+
+    if not silkscreen_layers:
+        return  # No silkscreen layers found
+
+    qr_squares_found = 0
+
+    for drawing in all_drawings:
+        layer = drawing.GetLayer()
+
+        # Check if this drawing is on a silkscreen layer
+        if not any(layer == sl[0] for sl in silkscreen_layers):
+            continue
+
+        # Only process PCB_SHAPE objects (geometric shapes)
+        if type(drawing).__name__ != "PCB_SHAPE":
+            continue
+
+        # Check if it's a rectangle
+        shape = drawing.GetShape()
+        if shape != kikit.defs.STROKE_T.S_RECT:
+            continue
+
+        # Get rectangle corners and calculate dimensions
+        corners = drawing.GetRectCorners()
+        if len(corners) < 4:
+            continue
+
+        # Calculate width and height
+        width_mm = toMm(abs(corners[2].x - corners[0].x))
+        height_mm = toMm(abs(corners[2].y - corners[0].y))
+
+        # Check if it matches target sizes (with tolerance)
+        size_match = any(abs(width_mm - size) < tolerance and abs(height_mm - size) < tolerance
+                         for size in target_sizes)
+
+        if size_match:
+            qr_squares_found += 1
+            # Calculate center position
+            center_x = toMm((corners[0].x + corners[2].x) / 2)
+            center_y = toMm((corners[0].y + corners[2].y) / 2)
+
+            # Find layer name
+            layer_name = "Unknown"
+            for layer_id, name in silkscreen_layers:
+                if layer == layer_id:
+                    layer_name = name
+                    break
+
+            print(f"QR Square found: {width_mm:.1f}x{height_mm:.1f}mm on {layer_name} at ({center_x:.2f}, {center_y:.2f})mm")
