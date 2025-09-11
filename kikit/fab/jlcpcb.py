@@ -133,8 +133,6 @@ def exportJlcpcb(board, outputdir, assembly, gerbers, schematic, ignore, field,
             archiveName = expandNameTemplate(nametemplate, "gerbers", loadedBoard)
         archiveName = sanitizeArchiveName(archiveName)
 
-        shutil.make_archive(os.path.join(outputdir, archiveName), "zip", outputdir, "gerber")
-
         archivePath = os.path.join(outputdir, archiveName)
         archivePathFull = archivePath + ".zip"
 
