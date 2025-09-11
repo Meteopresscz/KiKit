@@ -108,7 +108,8 @@ def exportJlcpcb(board, outputdir, assembly, gerbers, schematic, ignore, field,
 
     if gerbers:
         refillAllZones(loadedBoard)
-        ensurePassingDrc(loadedBoard)
+        if drc:
+            ensurePassingDrc(loadedBoard)
 
         removeComponents(loadedBoard, refsToIgnore)
 
