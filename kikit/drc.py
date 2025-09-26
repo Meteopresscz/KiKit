@@ -135,12 +135,13 @@ def readBoardItem(text: str,
     """
     Given DRC report object description, try to find it in the board
     """
-    itemMatch = re.match(r'\s*@\((-?\d*(\.\d*)?) mm, (-?\d*(\.\d*)?) mm\): (.*)$', text)
+    # Note that the description can contain newlines
+    itemMatch = re.match(r'\s*@\((-?\d*(\.\d*)?) mm, (-?\d*(\.\d*)?) mm\): (.*)', text, re.DOTALL)
     if itemMatch is None:
         raise RuntimeError(f"Cannot parse board item from '{text}'")
     posX = float(itemMatch.group(1))
     posY = float(itemMatch.group(3))
-    descr = itemMatch.group(5)
+    descr = itemMatch.group(5).rstrip()  # Remove trailing whitespace/newlines
     fPrint = (roundCoord(fromMm(posX)), roundCoord(fromMm(posY)), str(descr))
     try:
         return fingerprints[fPrint]
@@ -167,7 +168,20 @@ def readViolations(reportFile: TextIO,
             severity = bodyMatch.group(3))
         line = reportFile.readline()
         while line.startswith("    "):
-            v.objects.append(readBoardItem(line, fingerprints))
+            # Accumulate lines for multi-line descriptions
+            item_text = line
+            # Peek ahead to see if the next line is a continuation (doesn't start with "    @" or "[")
+            while True:
+                pos = reportFile.tell()
+                next_line = reportFile.readline()
+                # If next line is not an item start or section start, it's a continuation
+                if next_line and not next_line.startswith("    @") and not re.match(r'\[.*\]:', next_line) and next_line.strip() and not next_line.startswith("    "):
+                    item_text += next_line
+                else:
+                    # Not a continuation, seek back
+                    reportFile.seek(pos)
+                    break
+            v.objects.append(readBoardItem(item_text, fingerprints))
             line = reportFile.readline()
         violations.append(v)
 
