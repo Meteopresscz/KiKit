@@ -43,7 +43,8 @@ def exportGatema(board, outputdir, nametemplate, drc):
     Path(outputdir).mkdir(parents=True, exist_ok=True)
 
     refillAllZones(loadedBoard)
-    ensurePassingDrc(loadedBoard)
+    if drc:
+        ensurePassingDrc(loadedBoard)
 
     boardName = os.path.basename(board.replace(".kicad_pcb", ""))
     archiveName = expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)
