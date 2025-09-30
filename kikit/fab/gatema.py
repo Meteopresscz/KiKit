@@ -2,7 +2,7 @@ from pcbnewTransition import pcbnew
 import os
 import shutil
 import time
-from pcbnewTransition.pcbnew import GENDRILL_WRITER_BASE
+from pcbnewTransition.pcbnew import GENDRILL_WRITER_BASE, PLOT_FORMAT_GERBER
 from pathlib import Path
 from kikit.export import gerberImpl, exportSettingsOSHPark, fullGerberPlotPlan
 from kikit.fab.common import ensurePassingDrc, expandNameTemplate, refillAllZones
@@ -15,6 +15,7 @@ exportSettingsGatema = {
     "MinimalHeader": False,
     "NoSuffix": False,
     "MergeNPTH": False,
+    "MapFileFormat": PLOT_FORMAT_GERBER,
     "ZerosFormat": GENDRILL_WRITER_BASE.DECIMAL_FORMAT,
     "SubstractMaskFromSilk": True
 }
