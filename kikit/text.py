@@ -2,7 +2,7 @@ import datetime as dt
 import subprocess
 from string import Template
 from typing import Callable, Optional, Dict, Any
-from pcbnewTransition import pcbnew
+import pcbnew
 
 
 class Formatter:

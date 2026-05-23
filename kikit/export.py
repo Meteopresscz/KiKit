@@ -5,6 +5,7 @@ import subprocess
 from kikit.text import kikitTextVars
 from pcbnewTransition import pcbnew
 from pcbnewTransition.pcbnew import *
+from kikit.pcbnew_utils import DXF_UNITS_MM
 
 from kikit.defs import Layer
 
