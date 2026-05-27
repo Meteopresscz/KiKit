@@ -95,7 +95,7 @@ def dumpUnassignedTable(bomData, filename):
 
 def exportJlcpcb(board, outputdir, assembly, gerbers, schematic, ignore, field,
            corrections, correctionpatterns, missingerror, nametemplate, drc,
-           remove_footprint, autoname, skip_missing, variant):
+           remove_footprint, remove_offboard, autoname, skip_missing, variant):
     """
     Prepare fabrication files for JLCPCB including their assembly service
     """
@@ -123,6 +123,10 @@ def exportJlcpcb(board, outputdir, assembly, gerbers, schematic, ignore, field,
                     footprints_to_remove.append(fp)
             for fp in footprints_to_remove:
                 loadedBoard.Delete(fp)
+
+        if remove_offboard:
+            n = removeOffboardItems(loadedBoard)
+            print(f"Removed {n} element(s) lying completely beyond the board outline")
 
         gerberdir = os.path.join(outputdir, "gerber")
         shutil.rmtree(gerberdir, ignore_errors=True)

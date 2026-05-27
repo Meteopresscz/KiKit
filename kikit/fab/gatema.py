@@ -5,7 +5,7 @@ import time
 from pcbnewTransition.pcbnew import GENDRILL_WRITER_BASE, PLOT_FORMAT_GERBER
 from pathlib import Path
 from kikit.export import gerberImpl, exportSettingsOSHPark, fullGerberPlotPlan
-from kikit.fab.common import ensurePassingDrc, expandNameTemplate, refillAllZones
+from kikit.fab.common import ensurePassingDrc, expandNameTemplate, refillAllZones, removeOffboardItems
 
 
 exportSettingsGatema = {
@@ -36,7 +36,7 @@ extensionRenameTable = [
     (".gto", ".plt"),
 ]
 
-def exportGatema(board, outputdir, nametemplate, drc):
+def exportGatema(board, outputdir, nametemplate, drc, remove_offboard):
     """
     Prepare fabrication files for Gatema
     """
@@ -46,6 +46,10 @@ def exportGatema(board, outputdir, nametemplate, drc):
     refillAllZones(loadedBoard)
     if drc:
         ensurePassingDrc(loadedBoard)
+
+    if remove_offboard:
+        n = removeOffboardItems(loadedBoard)
+        print(f"Removed {n} element(s) lying completely beyond the board outline")
 
     boardName = os.path.basename(board.replace(".kicad_pcb", ""))
     archiveName = expandNameTemplate(nametemplate, boardName + "-gerbers", loadedBoard)

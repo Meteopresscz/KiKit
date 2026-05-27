@@ -7,7 +7,9 @@ from kikit.project import KiCADProject
 import pcbnew
 from math import sin, cos, radians
 from kikit.common import *
-from kikit.defs import MODULE_ATTR_T
+from kikit.defs import MODULE_ATTR_T, Layer
+from kikit.substrate import Substrate
+import shapely.geometry
 from kikit.drc_ui import ReportLevel
 from kikit import drc
 from kikit import eeschema, eeschema_v6
@@ -45,6 +47,71 @@ def refillAllZones(board):
         zone.UnFill()
     filler = pcbnew.ZONE_FILLER(board)
     filler.Fill(zones)
+
+def _itemToShapelyBox(item):
+    """Bounding box of a board item as a shapely box (in KiCAD internal units)."""
+    bbox = item.GetBoundingBox()
+    return shapely.geometry.box(bbox.GetX(), bbox.GetY(),
+        bbox.GetX() + bbox.GetWidth(), bbox.GetY() + bbox.GetHeight())
+
+def removeOffboardItems(board):
+    """
+    Remove everything that lies completely beyond the board outline (Edge.Cuts):
+    individual pads (and their drilled holes), footprint silkscreen/fab graphics,
+    off-board reference/value text, and standalone tracks, vias, drawings and
+    zones. Components are often only partially off the board (e.g. a power
+    transistor or connector mounted to a heatsink past the edge), so we work at
+    the element level rather than removing whole footprints - on-board pads of a
+    straddling part are kept.
+
+    Edge.Cuts items are never touched as they define the outline itself. Returns
+    the number of removed/hidden elements.
+
+    We use Delete (not Remove): Remove hands C++ ownership to Python, so garbage
+    collection of the wrapper later deletes the object a second time and
+    corrupts the board's item containers.
+    """
+    edges = collectEdges(board, Layer.Edge_Cuts)
+    if not edges:
+        return 0  # No outline to compare against, do nothing
+    outline = Substrate(edges).exterior()
+
+    def isOffboard(item):
+        return not outline.intersects(_itemToShapelyBox(item))
+
+    removed = 0
+    for footprint in board.GetFootprints():
+        # Off-board pads carry the off-board copper and the drilled holes
+        for pad in [p for p in footprint.Pads() if isOffboard(p)]:
+            footprint.Delete(pad)
+            removed += 1
+        # Off-board silkscreen / fab graphics (never the board outline)
+        for gi in [g for g in footprint.GraphicalItems()
+                   if g.GetLayer() != Layer.Edge_Cuts and isOffboard(g)]:
+            footprint.Delete(gi)
+            removed += 1
+        # Reference / value text sitting off-board is hidden so it is not plotted
+        for field in (footprint.Reference(), footprint.Value()):
+            if field.IsVisible() and isOffboard(field):
+                field.SetVisible(False)
+                removed += 1
+
+    for track in list(board.GetTracks()):  # tracks and vias
+        if isOffboard(track):
+            board.Delete(track)
+            removed += 1
+    for drawing in list(board.GetDrawings()):
+        if drawing.GetLayer() == Layer.Edge_Cuts:
+            continue
+        if isOffboard(drawing):
+            board.Delete(drawing)
+            removed += 1
+    for zone in list(board.Zones()):
+        if isOffboard(zone):
+            board.Delete(zone)
+            removed += 1
+
+    return removed
 
 def ensurePassingDrc(board):
     failed = drc.runImpl(board,

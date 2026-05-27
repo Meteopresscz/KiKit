@@ -37,6 +37,8 @@ def fabCommand(f):
 @click.option("--autoname/--no-autoname", is_flag=True, help="Automatically name the output files based on the board name", default=True)
 @click.option("--remove-footprint", multiple=True, type=str, default=[],
     help="Footprint ID (Lib:Footprint) to remove before generating Gerbers. Can be specified multiple times.")
+@click.option("--remove-offboard/--no-remove-offboard", is_flag=True, default=False,
+    help="Remove footprints, pads, holes etc. that lie completely beyond the board outline before generating Gerbers.")
 @click.option("--skip-missing/--no-skip-missing", is_flag=True, help="Skip components with missing or empty LCSC field", default=True)
 def jlcpcb(**kwargs):
     """
@@ -93,6 +95,8 @@ def oshpark(**kwargs):
 
 @click.command()
 @fabCommand
+@click.option("--remove-offboard/--no-remove-offboard", is_flag=True, default=False,
+    help="Remove footprints, pads, holes etc. that lie completely beyond the board outline before generating Gerbers.")
 def gatema(**kwargs):
     """
     Prepare fabrication files for Gatema
