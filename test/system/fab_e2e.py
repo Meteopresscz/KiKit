@@ -171,23 +171,35 @@ def compare_text(snap, fresh):
 
 
 def compare_png(snap, fresh, diff_path):
-    """Pixel-diff two PNGs via ImageMagick `compare -metric AE`. Writes diff PNG.
-    Returns (ok, differing_pixels_or_message)."""
+    """Pixel-diff two PNGs. Writes a bilevel diff mask PNG.
+    Returns (ok, differing_pixels_or_message).
+
+    Deliberately avoids `compare -metric AE`: depending on the ImageMagick
+    version the AE value is a quantum-scaled sum in scientific notation
+    rather than a pixel count, which is easy to misparse."""
     if not fresh.exists():
         return False, "missing in fresh output"
-    # `compare` writes to stderr; exit code 0 = identical, 1 = differ, 2 = error.
+    sizes = subprocess.run(
+        ["identify", "-format", "%wx%h;", str(snap), str(fresh)],
+        capture_output=True, text=True,
+    ).stdout.strip(";").split(";")
+    if len(sizes) == 2 and sizes[0] != sizes[1]:
+        return False, f"image size differs: {sizes[0]} vs {sizes[1]}"
     proc = subprocess.run(
-        ["compare", "-metric", "AE", "-fuzz", "1%",
-         str(snap), str(fresh), str(diff_path)],
+        ["convert", str(snap), str(fresh),
+         "-compose", "difference", "-composite",
+         "-threshold", "1%", "-type", "bilevel", str(diff_path)],
         capture_output=True, text=True,
     )
-    if proc.returncode == 2:
-        return False, f"ImageMagick compare error: {proc.stderr.strip()}"
-    # AE count is the last token on stderr
-    m = re.search(r"(\d+)", proc.stderr)
-    if not m:
-        return False, f"unexpected compare output: {proc.stderr.strip()}"
-    diff_pixels = int(m.group(1))
+    if proc.returncode != 0:
+        return False, f"ImageMagick convert error: {proc.stderr.strip()}"
+    count = subprocess.run(
+        ["identify", "-format", "%[fx:round(mean*w*h)]", str(diff_path)],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if not count.isdigit():
+        return False, f"unexpected identify output: {count}"
+    diff_pixels = int(count)
     if diff_pixels <= PIXEL_TOLERANCE:
         diff_path.unlink(missing_ok=True)
         return True, f"{diff_pixels} px"
