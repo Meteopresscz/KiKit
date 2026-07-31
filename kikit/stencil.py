@@ -33,7 +33,9 @@ def addRoundedCorner(board, center, start, end, thickness):
     corner.SetCenter(toKiCADPoint((center[0], center[1])))
     corner.SetStart(toKiCADPoint((start[0], start[1])))
 
-    if np.cross(start - center, end - center) > 0:
+    startVector = start - center
+    endVector = end - center
+    if startVector[0] * endVector[1] - startVector[1] * endVector[0] > 0:
         corner.SetArcAngleAndEnd(fromDegrees(90), True)
     else:
         corner.SetArcAngleAndEnd(fromDegrees(-90), True)
@@ -484,6 +486,5 @@ def createPrinted(inputboard, outputdir, pcbthickness, thickness, framewidth,
     solid.scad_render_to_file(topStencil, topStencilFile,
         file_header=f'$fa = 0.4; $fs = 0.4;', include_orig_code=True)
     renderScad(topStencilFile, os.path.join(outputdir, "topStencil.stl"))
-
 
 

@@ -35,7 +35,7 @@ from kikit.sexpr import isElement, parseSexprF, SExpr, Atom, findNode, parseSexp
 from kikit.annotations import AnnotationReader, TabAnnotation
 from kikit.drc import DrcExclusion, readBoardDrcExclusions, serializeExclusion
 from kikit.units import mm, deg, inch
-from kikit.pcbnew_utils import increaseZonePriorities
+from kikit.pcbnew_utils import duplicateZone, increaseZonePriorities
 
 class PanelError(RuntimeError):
     pass
@@ -186,6 +186,20 @@ class NetClass():
 
     def serialize(self) -> Any:
         return deepcopy(self.data)
+
+def netClassesDefaultFirst(netClasses: Iterable[Any]) -> List[Any]:
+    netClasses = list(netClasses)
+    defaults = [x for x in netClasses if x["name"].rsplit("-", 1)[-1] == "Default"]
+    custom = [x for x in netClasses if x["name"].rsplit("-", 1)[-1] != "Default"]
+    return defaults + custom
+
+def reloadProject(projectPath: str) -> None:
+    projectPath = str(Path(projectPath).resolve())
+    settingsManager = pcbnew.GetSettingsManager()
+    project = settingsManager.GetProject(projectPath)
+    if project:
+        settingsManager.UnloadProject(project, False)
+    settingsManager.LoadProject(projectPath)
 
 def getOriginCoord(origin, bBox):
     """Returns real coordinates (VECTOR2I) of the origin for given bounding box"""
@@ -489,7 +503,14 @@ def addFrameFillets(frameGeometry, boardSubstrates, fillet, panel=None):
                 t, _ = frameSubstrate.tab(
                     annotation.origin, reverseDir, annotation.width,
                     partitionLine=None, fillet=fillet)
-                if t is not None:
+                if t is None:
+                    continue
+                crossesOtherBoard = any(
+                    other is not s and
+                    t.intersection(other.substrates).area > SHP_EPSILON ** 2
+                    for other in boardSubstrates
+                )
+                if not crossesOtherBoard:
                     tabs.append(t)
             except (TabError, TabFilletError):
                 pass  # Tab doesn't reach this frame piece (e.g. board-to-board tab)
@@ -685,6 +706,9 @@ class Panel:
             originalZoneNames[newName] = zone.GetZoneName()
             zone.SetZoneName(newName)
         self.board.Save(self.filename)
+        # The board is reloaded below before zone refill. Transfer project
+        # settings now so KiCad's filler sees the correct netclass definitions.
+        self.transferProjectSettings()
 
         # Remove cuts
         for cut, _ in vcuts:
@@ -697,6 +721,7 @@ class Panel:
             self.board.Remove(edge)
 
         # Handle zone refilling in a separate board
+        reloadProject(self.getProFilepath())
         fillBoard = pcbnew.LoadBoard(self.filename)
         fillerTool = pcbnew.ZONE_FILLER(fillBoard)
         if refillAllZones:
@@ -826,8 +851,10 @@ class Panel:
             currentPro["board"]["design_settings"]["rule_severities"] = sourcePro["board"]["design_settings"]["rule_severities"]
             currentPro["text_variables"] = sourcePro.get("text_variables", {})
 
-            currentPro["net_settings"]["classes"] = sourcePro["net_settings"]["classes"]
-            currentPro["net_settings"]["classes"] += [x.serialize() for x in self.newNetClasses.values()]
+            netClasses = sourcePro["net_settings"]["classes"] + [
+                x.serialize() for x in self.newNetClasses.values()
+            ]
+            currentPro["net_settings"]["classes"] = netClassesDefaultFirst(netClasses)
             currentPro["net_settings"]["netclass_patterns"] = self.netCLassPatterns
             currentPro["net_settings"]["netclass_assignments"] = self.netClassAssignments
 
@@ -2206,7 +2233,7 @@ class Panel:
 
             for l in layers:
                 self._ensureLayerEnabled(l)
-                zoneContainer = zoneContainer.Duplicate()
+                zoneContainer = duplicateZone(zoneContainer)
                 zoneContainer.SetLayer(l)
                 self.board.Add(zoneContainer)
                 self.zonesToRefill.append(zoneContainer)
@@ -2641,5 +2668,3 @@ def extractSourceAreaByAnnotation(board, reference, layer=Layer.Edge_Cuts):
     if ringPointedAt == -1:
         raise RuntimeError(f"Annotation symbol '{reference}' does not point to a board edge")
     return findBoundingBox([edges[i] for i in rings[ringPointedAt]])
-
-
