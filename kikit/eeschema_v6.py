@@ -226,6 +226,32 @@ def collectSymbols(filename, path = None, parentProperties = {}):
     return symbols, instances
 
 
+def collectSheetFiles(filename):
+    """
+    Return a list of all schematic files making up the hierarchy rooted at
+    the given sheet (including the sheet itself)
+    """
+    files = [filename]
+    with open(filename, encoding="utf-8") as f:
+        sheetSExpr = parseSexprF(f)
+    for item in sheetSExpr.items:
+        if not isSheet(item):
+            continue
+        f = getProperty(item, "Sheet file")
+        if f is None:
+            # v7 format
+            f = getProperty(item, "Sheetfile")
+        if f is None:
+            raise SchematicError("Invalid format - no Sheet file")
+        dirname = os.path.dirname(filename)
+        if len(dirname) > 0:
+            f = dirname + "/" + f
+        for x in collectSheetFiles(f):
+            if x not in files:
+                files.append(x)
+    return files
+
+
 def getField(component, field):
     return component.properties.get(field, None)
 

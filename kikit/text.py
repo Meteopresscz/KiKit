@@ -1,8 +1,10 @@
 import datetime as dt
+import os
 import subprocess
 from string import Template
-from typing import Callable, Optional, Dict, Any
+from typing import Callable, Optional, Dict, Any, List
 import pcbnew
+from kikit.eeschema_v6 import collectSheetFiles
 
 
 class Formatter:
@@ -31,22 +33,34 @@ def kikitTextVars(board: pcbnew.BOARD, vars: Dict[str, str]={}) -> Dict[str, Any
         res = subprocess.check_output(cmd)
         return res.decode("utf-8").strip()
 
+    def gitTrackedFiles() -> List[str]:
+        """
+        Files whose changes the git variables reflect - the board and its
+        schematic hierarchy (it determines the BOM and the position files)
+        """
+        boardFile = board.GetFileName()
+        files = [boardFile]
+        schematic = os.path.splitext(boardFile)[0] + ".kicad_sch"
+        if os.path.exists(schematic):
+            files += collectSheetFiles(schematic)
+        return files
+
     def gitDescribeBoard() -> str:
         try:
             # TODO: Maybe this should check the entire directory?
-            file_path = board.GetFileName()
-            # First get the latest git tag affecting our board file
+            files = gitTrackedFiles()
+            # First get the latest commit affecting our board or schematic
             commit_hash = command(
-                ["git", "log", "-1", "--pretty=format:%H", "--", file_path]
+                ["git", "log", "-1", "--pretty=format:%H", "--"] + files
             )
 
             # We need to generate the dirty flag manually, since
             # git describe does not support --dirty=-d if a hash is specified
             has_unstaged_changes = subprocess.call(
-                ["git", "diff", "--quiet", "--", file_path]
+                ["git", "diff", "--quiet", "--"] + files
             )
             has_staged_changes = subprocess.call(
-                ["git", "diff", "--cached", "--quiet", "--", file_path]
+                ["git", "diff", "--cached", "--quiet", "--"] + files
             )
             is_dirty = has_unstaged_changes or has_staged_changes
 
@@ -62,9 +76,8 @@ def kikitTextVars(board: pcbnew.BOARD, vars: Dict[str, str]={}) -> Dict[str, Any
 
     def gitDateBoard() -> str:
         try:
-            file_path = board.GetFileName()
             return command(
-                ["git", "log", "-1", "--pretty=format:%cs", "--", file_path]
+                ["git", "log", "-1", "--pretty=format:%cs", "--"] + gitTrackedFiles()
             )
         except subprocess.CalledProcessError:
             return "unknown"
